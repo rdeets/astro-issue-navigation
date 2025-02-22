@@ -1,0 +1,394 @@
+<script>
+	import { gsap } from 'gsap';
+	import MotionPathPlugin from 'gsap/MotionPathPlugin';
+	import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+	let ctx: gsap.Context | null = null;
+
+	const init = () => {
+		gsap.config({
+			nullTargetWarn: false,
+		});
+		gsap.registerPlugin(ScrollTrigger, MotionPathPlugin);
+		ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
+		if (ctx != null) {
+			ctx?.revert();
+			ctx = null;
+		}
+
+		const parallaxTl = gsap.timeline({
+			scrollTrigger: {
+				trigger: '.HERO_CONTAINER',
+				start: 'top top',
+				// end: 'bottom-=20% top+=30%',
+				end: 'bottom top',
+				// markers: true,
+				scrub: 1.5,
+			},
+		});
+
+		(gsap.utils.toArray('.LAYER') as HTMLElement[]).forEach((layer) => {
+			const depth = layer.dataset.depth;
+			const movement = -(layer.offsetHeight * Number(depth) * 0.7);
+			parallaxTl.to(layer, { y: movement, ease: 'power1.out' }, 0);
+		});
+
+		document.querySelectorAll('.GUN_CONTAINER').forEach((container) => {
+			const parts = gsap.utils.toArray('.GUN_PART') as HTMLElement[];
+			const bg = container.querySelector(
+				'.GUN_BACKGROUND'
+			) as HTMLElement;
+			const priceTags = container.querySelectorAll('.PRICE_TAG');
+
+			// Calculate movement based on viewport height with maximum limits
+			const getMovement = () => {
+				const vw = window.innerWidth;
+				const baseMove = vw < 768 ? 200 : vw < 1024 ? 200 : 110;
+				return {
+					slider: -baseMove * 1.4,
+					barrel: -(baseMove * 0.8),
+					spring: baseMove * 0.5,
+					frame: baseMove / 10,
+				};
+			};
+
+			const createTimeline = () => {
+				const movements = getMovement();
+
+				// Create a timeline for the gun parts animation
+				const tl = gsap.timeline({
+					scrollTrigger: {
+						trigger: container,
+						start: 'center center+=20%',
+						end: 'bottom+=200% top',
+						scrub: 1,
+						pin: true,
+						onLeave: () => {
+							gsap.set(container, { visibility: 'hidden' });
+						},
+						onEnterBack: () => {
+							gsap.set(container, {
+								visibility: 'visible',
+								clearProps: 'visibility',
+							});
+						},
+					},
+				});
+
+				// Initial parts animation (using first 40% of the timeline)
+				tl.to(
+					parts[0] ?? {},
+					{ yPercent: movements.slider, duration: 0.4 },
+					0
+				)
+					.to(
+						parts[1] ?? {},
+						{ yPercent: movements.barrel, duration: 0.4 },
+						0
+					)
+					.to(
+						parts[2] ?? {},
+						{ yPercent: movements.spring, duration: 0.4 },
+						0
+					)
+					.to(
+						parts[3] ?? {},
+						{ yPercent: movements.frame, duration: 0.4 },
+						0
+					)
+					.to(bg, { opacity: 0.2 }, 0);
+
+				// Price tag animations - now synced with parts movement
+				priceTags.forEach((tag, index) => {
+					tl.to(
+						tag,
+						{
+							opacity: 1,
+							duration: 0.1,
+						},
+						0.15 + 0.025 * index // Start after parts begin moving, stagger each tag
+					);
+				});
+
+				// Add downward movement for the last 60% of the timeline
+				tl.to(
+					container,
+					{
+						y: '0vh',
+						duration: 1,
+						ease: 'power1.in',
+					},
+					0.4
+				);
+
+				return tl;
+			};
+
+			let timeline = createTimeline();
+
+			// Update animation on resize with proper cleanup
+			window.addEventListener('resize', () => {
+				// Kill the ScrollTrigger instance first
+				timeline.scrollTrigger?.kill();
+				// Then kill the timeline
+				timeline.kill();
+				// Create new timeline
+				timeline = createTimeline();
+			});
+		});
+
+		document.querySelectorAll('.SELECTION_CARD').forEach((parent) => {
+			const card = parent.querySelector('.CARD') as HTMLElement;
+			const cardBg = parent.querySelector('.CARD-bg') as HTMLElement;
+			const cardInfo = parent.querySelector('.CARD-info') as HTMLElement;
+
+			// Set the background image from data attribute
+			const imageUrl = parent.getAttribute('data-image');
+			cardBg.style.backgroundImage = `url(${imageUrl})`;
+
+			const handleMovement = (clientX: number, clientY: number) => {
+				const { offsetWidth, offsetHeight } = parent as HTMLElement; // Get dimensions
+				const mouseX = clientX / offsetWidth; // Normalize mouse X
+				const mouseY = clientY / offsetHeight; // Normalize mouse Y
+
+				// Calculate translation for background
+				const tX = Math.max(Math.min((mouseX - 0.5) * -40, 20), -20); // Translate X
+				const tY = Math.max(Math.min((mouseY - 0.5) * -40, 20), -20); // Translate X
+
+				gsap.to(cardBg, {
+					x: tX,
+					y: tY,
+					skewY: -tX / 50,
+					skewX: -tY / 50,
+				});
+			};
+
+			parent.addEventListener('touchmove', (e) => {
+				//@ts-expect-error
+				const touch = e.touches[0]; // Get the first touch point
+				handleMovement(
+					touch.clientX - parent.getBoundingClientRect().left,
+					touch.clientY - parent.getBoundingClientRect().top
+				);
+			});
+
+			parent.addEventListener('mousemove', (e) => {
+				//@ts-expect-error
+				handleMovement(e.offsetX, e.offsetY);
+			});
+
+			const startHandler = () => {
+				gsap.to(cardInfo.querySelector('p'), { opacity: 1 });
+				gsap.to(cardBg, { opacity: '0.8', duration: 0.2 });
+				gsap.to(card, {
+					boxShadow: 'rgba(255,255,255,.15) 0px 0px 20px',
+					duration: 0.2,
+				});
+			};
+
+			const leaveHandler = () => {
+				gsap.to(cardInfo.querySelector('p'), { opacity: '0' });
+				gsap.to(cardBg, { opacity: '0.5', duration: 0.2 });
+				gsap.to(card, {
+					boxShadow: `rgba(0, 0, 0, 0.66) 0 10px 10px 0,
+					inset #333 0 0 0 5px,
+					inset rgba(255, 255, 255, 0.5) 0 0 0 6px`,
+					duration: 0.2,
+					scale: 1,
+					skewX: 0,
+					skewY: 0,
+				});
+				gsap.to(cardBg, { x: '0', y: '0' }); // Reset background position on leave
+			};
+
+			parent.addEventListener('mouseenter', startHandler);
+			parent.addEventListener('touchstart', startHandler);
+
+			parent.addEventListener('mousedown', () => {
+				gsap.to(card, {
+					scale: 1.05,
+					duration: 0.1,
+				});
+			});
+
+			parent.addEventListener('mouseup', () => {
+				gsap.to(card, {
+					scale: 1,
+					duration: 0.2,
+				});
+				leaveHandler();
+			});
+
+			parent.addEventListener('mouseleave', leaveHandler);
+			parent.addEventListener('touchend', leaveHandler);
+			parent.addEventListener('touchcanel', leaveHandler);
+		});
+
+		let porschetween: any;
+		let lambotween: any;
+
+		const initMotionPath = () => {
+			gsap.set('.LAMBO', { scale: 0.5, autoAlpha: 1 });
+			gsap.set('.PORSCHE', { scale: 0.5, autoAlpha: 1 });
+
+			lambotween && lambotween.progress(0).kill();
+			porschetween && porschetween.progress(0).kill();
+
+			lambotween = gsap.to('.LAMBO', {
+				immediateRender: true,
+				ease: 'none',
+				motionPath: {
+					path: '#track-lambo',
+					align: '#track-lambo',
+					autoRotate: 180,
+					alignOrigin: [0.5, 0.5],
+				},
+				scrollTrigger: {
+					trigger: '#track_container',
+					start: 'top 40%', // Start when the top of the body hits the middle of the viewport
+					end: 'bottom bottom-=50%', // End when the bottom of the body hits the top of the viewport
+					scrub: 1, // Smoothly animate based on scroll position
+				},
+			});
+
+			porschetween = gsap.to('.PORSCHE', {
+				immediateRender: true,
+				ease: 'none',
+				motionPath: {
+					path: '#track-porsche',
+					align: '#track-porsche',
+					autoRotate: 180,
+					alignOrigin: [0.5, 0.5],
+				},
+				scrollTrigger: {
+					trigger: '#track_container',
+					start: 'top 50%', // Start when the top of the body hits the middle of the viewport
+					end: 'bottom bottom-=40%', // End when the bottom of the body hits the top of the viewport
+					scrub: 1, // Smoothly animate based on scroll position
+				},
+			});
+		};
+
+		initMotionPath();
+		window.addEventListener('resize', initMotionPath);
+
+		document.querySelectorAll('.CARD_STACK').forEach((parent) => {
+			const q = gsap.utils.selector(parent);
+			const cards = q('.card');
+
+			gsap.set(cards, { position: 'absolute' });
+
+			gsap.to(cards, {
+				yPercent: -100,
+				stagger: 0.5,
+				scrollTrigger: {
+					trigger: parent,
+					pin: true,
+					scrub: 1,
+					start: 'top top+=10%px',
+					end: '+=2000px',
+					snap: {
+						snapTo: 0.33,
+						duration: { min: 0.1, max: 0.4 },
+						ease: 'power1.inOut',
+					},
+				},
+			});
+		});
+
+		document
+			.querySelectorAll('.GALLERY_SLIDER')
+			.forEach((section, index) => {
+				const w = section.querySelector('.GALLERY_WRAPPER')!;
+				const [x, xEnd] =
+					index % 2
+						? [
+								'50%',
+								(w.scrollWidth -
+									(section as HTMLElement).offsetWidth) *
+									-0.5,
+							]
+						: [w.scrollWidth * -0.5, 0];
+				gsap.fromTo(
+					w,
+					{ x },
+					{
+						x: xEnd,
+						scrollTrigger: {
+							trigger: section,
+							scrub: 1,
+						},
+					}
+				);
+			});
+
+		document.querySelectorAll('.REVEALER_MASK_V2').forEach((parent) => {
+			ScrollTrigger.create({
+				trigger: parent,
+				start: 'bottom bottom-=10%',
+				end: 'bottom top+=15%',
+				scrub: true, // Smooth scrubbing based on scroll position
+				onUpdate: (self) => {
+					const progress = self.progress; // Get progress from scroll
+					const maskValue = `linear-gradient(to bottom, rgba(0, 0, 0, 1) ${90 - 90 * progress}%, rgba(0, 0, 0, 0) ${100 - 100 * progress}%)`;
+					gsap.set(parent, { maskImage: maskValue });
+				},
+			});
+		});
+
+		document.querySelectorAll('.STICKY_PANEL').forEach((parent) => {
+			const q = gsap.utils.selector(parent);
+			ScrollTrigger.create({
+				trigger: parent,
+				start: 'top 72px',
+				end: 'bottom 150px',
+				pin: q('.STICKY_CONTENT'),
+			});
+		});
+
+		document.querySelectorAll('.COLOR_CHANGE').forEach((el) => {
+			gsap.to(el, {
+				scrollTrigger: {
+					trigger: el,
+					start: 'bottom bottom',
+					end: 'bottom top',
+					toggleActions: 'play reverse play reverse',
+				},
+				duration: 1,
+				backgroundColor: '#000',
+				ease: 'none',
+			});
+		});
+
+		document.querySelectorAll('.PARRALAX_SECTION').forEach((parent) => {
+			const q = gsap.utils.selector(parent);
+
+			// Content parallax
+			gsap.to(q('.PARRALAX_CONTENT'), {
+				yPercent: -50,
+				ease: 'none',
+				scrollTrigger: {
+					trigger: parent,
+					start: 'top bottom',
+					end: 'bottom top',
+					scrub: true,
+					// markers: true, // Uncomment for debugging
+				},
+			});
+
+			// Image parallax
+			gsap.to(q('.PARRALAX_IMAGE'), {
+				yPercent: 25,
+				ease: 'none',
+				scrollTrigger: {
+					trigger: parent,
+					start: 'top bottom',
+					end: 'bottom top',
+					scrub: true,
+				},
+			});
+		});
+	};
+	document.addEventListener('astro:after-swap', init);
+	init();
+</script>
