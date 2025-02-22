@@ -1,25 +1,10 @@
 ---
-import { ClientRouter, fade } from "astro:transitions";
+import MainLayout from "../layouts/MainLayout.astro";
 ---
 
-<html>
-  <head>
-    <ClientRouter />
-  </head>
-  <nav
-    style="position: fixed; background-color: white; top: 0; left: 0; right: 0; z-index: 1000;"
-    transition:persist
-  >
-    Persisted Nav Bar
-  </nav>
-  <body transition:animate={fade({ duration: "0.4s" })}>
-    <div
-      style="color: white; margin-top: 100px;  height: 100vh; background-color: blue"
-    >
-      Scroll Down First
-    </div>
-    <div style="height: 100vh; background-color: red">
-      <a href="/page2">Click Me</a>
-    </div>
-  </body>
-</html>
+<MainLayout>
+  <div class="w-full h-screen bg-blue-500">Scroll Down First</div>
+  <div class="w-full h-screen bg-red-500">
+    <a href="/page2">Click Me</a>
+  </div>
+</MainLayout>

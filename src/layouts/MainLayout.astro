@@ -1,0 +1,17 @@
+---
+import { fade } from "astro:transitions";
+import Footer from "../components/Footer.astro";
+import Header from "../components/Header.astro";
+import BareLayout from "./BareLayout.astro";
+---
+
+<BareLayout>
+  <Header transition:persist="header"> Navigation Header </Header>
+  <main
+    class={"flex flex-col items-center gap-12 w-full pb-8 overflow-x-hidden"}
+    transition:animate={fade({ duration: "0.4s" })}
+  >
+    <slot />
+  </main>
+  <Footer transition:persist="footer" />
+</BareLayout>

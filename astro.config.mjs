@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import cloudflare from '@astrojs/cloudflare';
+import tailwind from '@astrojs/tailwind';
 // https://astro.build/config
 export default defineConfig({
     site: 'https://test.com',
@@ -11,6 +12,9 @@ export default defineConfig({
 	}),
 	integrations: [
 		(await import('@playform/inline')).default({}),
+		tailwind({
+			applyBaseStyles: false,
+		}),
 	],
 	experimental: {
 		contentIntellisense: true,

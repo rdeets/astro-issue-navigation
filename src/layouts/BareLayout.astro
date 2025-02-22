@@ -1,0 +1,21 @@
+---
+import MainHead from "../components/MainHead.astro";
+
+// Dynamically import all scripts from the specified folder
+const scripts = import.meta.glob<{ default: any }>("../scripts/*.astro", {
+  eager: true,
+});
+---
+
+<html lang="en" class="dark">
+  <MainHead />
+  <body>
+    <slot />
+    {
+      Object.values(scripts).map((script) => {
+        const ScriptComponent = script.default;
+        return <ScriptComponent />;
+      })
+    }
+  </body>
+</html>
