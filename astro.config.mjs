@@ -6,5 +6,22 @@ export default defineConfig({
     site: 'https://test.com',
 	output: 'static',
 	trailingSlash: 'ignore',
-	adapter: cloudflare(),
+	adapter: cloudflare({
+		imageService: 'compile',
+	}),
+	integrations: [
+		(await import('@playform/inline')).default({}),
+	],
+	experimental: {
+		contentIntellisense: true,
+		clientPrerender: true,
+	},
+	security: {
+		checkOrigin: false,
+	},
+	vite: {
+		ssr: {
+			target: 'webworker',
+		},
+	},
 });
